@@ -1,10 +1,10 @@
+import math
 import sympy
 from sympy.physics import hydrogen
 from typing import Any, Callable
 
 
-name = "spdf"
-orientation = [
+ORIENTATION = [
     {
         0: "",
     },
@@ -59,9 +59,9 @@ def orbital_name(n: int, l: int, m: int) -> str:
         raise ValueError("'n' must be greater than 'l'")
     if not (abs(m) <= l):
         raise ValueError("|'m'| must be less or equal to 'l'")
-    if not (len(orientation) > l):
+    if not (len(ORIENTATION) > l):
         raise NotImplementedError("Currently only supported upto f orbital")
-    return f"{n}{name[l]}{orientation[l][m]}"
+    return f"{n}{'spdf'[l]}{ORIENTATION[l][m]}"
 
 
 # TODO: test performance
@@ -69,9 +69,29 @@ def orbital_name(n: int, l: int, m: int) -> str:
 # opt 2. use transformed Psi(x, y, z)
 # opt 3. numpy array operation
 
+
+def to_orthogonal(r, theta, phi):
+    sin_theta = math.sin(theta)
+    x = r * math.cos(phi) * sin_theta
+    y = r * math.sin(phi) * sin_theta
+    z = r * math.cos(theta)
+    return x, y, z
+
+
+def to_spherical(x, y, z):
+    # TODO: use atan2
+    r = math.sqrt(x * x + y * y + z * z)
+    theta = math.acos(z / r) if r != 0 else 0
+    if x > 0:
+        phi = math.atan(y / x)
+    elif x < 0:
+        phi = math.atan(y / x) + math.pi
+    else:  # not required if using numpy ('inf' is supported)
+        phi = math.pi / 2
+    return r, theta, phi
+
+
 # TODO: what about imaginary parts of Psi?
-
-
 def get_wavefunc(
     n: int,
     l: int,
@@ -122,14 +142,17 @@ def get_wavefunc(
     if not orthogonal:
         return sympy.lambdify([r, theta, phi], expr, **options)
 
+    # TODO: we can use atan2!
+    raise NotImplementedError("Need proper conversion")
+
     x = sympy.Symbol("x", real=True)
     y = sympy.Symbol("y", real=True)
     z = sympy.Symbol("z", real=True)
 
     expr = expr.subs(
         [
-            (r, x * x + y * y + z * z),
-            (theta, sympy.acos(z / y)),
+            (r, sympy.sqrt(x * x + y * y + z * z)),
+            (theta, sympy.acos(z / sympy.sqrt(x * x + y * y + z * z))),
             (phi, sympy.atan(y / x)),
         ]
     )
@@ -150,7 +173,7 @@ class Psi_nlm:
         self.theta = sympy.Symbol("theta", real=True)
         self.phi = sympy.Symbol("phi", real=True)
 
-        # XXX: Psi_nlm uses order (r, phi, theta) for some reason
+        # XXX: hydrogen.Psi_nlm() uses order [r, phi, theta] (why??)
         self.expr = hydrogen.Psi_nlm(n, l, m, self.r, self.phi, self.theta, Z)
 
     def __repr__(self) -> str:
@@ -166,9 +189,7 @@ class Psi_nlm:
         return self.expr.evalf(self.prec, subs=subs)
 
     def orthogonal(self, x, y, z):
-        r = sympy.sqrt(x * x + y * y + z * z)
-        theta = sympy.acos(z / y)
-        phi = sympy.atan(y / x)
+        r, theta, phi = to_spherical(x, y, z)
         subs = {self.r: r, self.theta: theta, self.phi: phi}
         return self.expr.evalf(self.prec, subs=subs)
 
