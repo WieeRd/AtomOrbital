@@ -79,19 +79,17 @@ def to_orthogonal(r, theta, phi):
 
 
 def to_spherical(x, y, z):
-    # TODO: use atan2
     r = math.sqrt(x * x + y * y + z * z)
     theta = math.acos(z / r) if r != 0 else 0
-    if x > 0:
-        phi = math.atan(y / x)
-    elif x < 0:
-        phi = math.atan(y / x) + math.pi
-    else:  # not required if using numpy ('inf' is supported)
-        phi = math.pi / 2
+    phi = math.atan2(y, x)
     return r, theta, phi
 
 
-# TODO: what about imaginary parts of Psi?
+# Q: what about imaginary parts of Psi?
+# A: there won't be any imaginary part in 'real orbital' expression
+
+# TODO: Psi(2p_x) = ( Psi(2,1,1) + Psi(2,1,-1) ) / sqrt(2)
+#       Psi(2p_y) = ( Psi(2,1,1) - Psi(2,1,-1) ) / sqrt(2) / i
 def get_wavefunc(
     n: int,
     l: int,
@@ -132,6 +130,7 @@ def get_wavefunc(
     phi = sympy.Symbol("phi", real=True)
 
     # XXX: hydrogen.Psi_nlm() uses order [r, phi, theta] (why??)
+    # TODO: define my own Psi_nlm
     expr = hydrogen.Psi_nlm(n, l, m, r, phi, theta, Z)
     if abs_sqrd:
         expr = expr * sympy.conjugate(expr)  # probability density
@@ -142,18 +141,15 @@ def get_wavefunc(
     if not orthogonal:
         return sympy.lambdify([r, theta, phi], expr, **options)
 
-    # TODO: we can use atan2!
-    raise NotImplementedError("Need proper conversion")
-
     x = sympy.Symbol("x", real=True)
     y = sympy.Symbol("y", real=True)
     z = sympy.Symbol("z", real=True)
 
     expr = expr.subs(
         [
+            (theta, sympy.acos(z / r)),  # swap 'theta' first to expand 'r'
             (r, sympy.sqrt(x * x + y * y + z * z)),
-            (theta, sympy.acos(z / sympy.sqrt(x * x + y * y + z * z))),
-            (phi, sympy.atan(y / x)),
+            (phi, sympy.atan2(y, x)),
         ]
     )
 

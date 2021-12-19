@@ -24,33 +24,26 @@ def list_vs_array():
     return l, a
 
 
+import sympy
 from sympy.physics import hydrogen
-from sympy import Symbol, integrate, conjugate, pi, oo, sin, sqrt, simplify
 
-r = Symbol("r", real=True, positive=True)
-theta = Symbol("theta", real=True)
-phi = Symbol("phi", real=True)
+# it's 'real' not 'is_real'
+r = sympy.Symbol("r", real=True, positive=True)
+theta = sympy.Symbol("theta", real=True)
+phi = sympy.Symbol("phi", real=True)
 
-wf = hydrogen.Psi_nlm(2, 1, 1, r, phi, theta)
-print(f"Psi(2,1,1) = {wf}")
-abs_sqrd = wf * conjugate(wf)
-print(f"PDF(2,1,1) = {abs_sqrd}")
+# WHO THE FUCK DECIDED THIS FUCTION'S PARAMETER ORDER
+p0 = hydrogen.Psi_nlm(2, 1, 0, r, phi, theta)
+p1 = hydrogen.Psi_nlm(2, 1, 1, r, phi, theta)
+p2 = hydrogen.Psi_nlm(2, 1, -1, r, phi, theta)
 
-jacobi = r * r * sin(theta)
-i = integrate(abs_sqrd*jacobi, (r, 0, oo), (phi, 0, 2*pi), (theta, 0, pi))
-print(f"Integral PDF(2,1,1) = {i}")
 
-print()
-
-wf2 = hydrogen.Psi_nlm(2, 1, -1, r, theta, phi)
-print(f"Psi(2,1,-1) = {wf2}")
-
-sp_x = (wf + wf2) / sqrt(2)
-sp_x = simplify(sp_x)
-print(f"Psi(2p_x) = {sp_x}\n")
-
-abs_sqrd2 = simplify(sp_x * conjugate(sp_x))
-print(f"PDF(2p_x) = {abs_sqrd2}\n")
-
-i = integrate(abs_sqrd2*jacobi, (r, 0, oo), (phi, 0, 2*pi), (theta, 0, pi))
-print(f"Integral PDF(2p_x) = {i}")
+def integrate(wf):
+    abs_sqrd = wf * sympy.conjugate(wf)
+    jacobi = r * r * sympy.sin(theta)
+    return sympy.integrate(
+        abs_sqrd * jacobi,
+        (r, 0, sympy.oo),
+        (phi, 0, 2 * sympy.pi),
+        (theta, 0, sympy.pi),
+    )
